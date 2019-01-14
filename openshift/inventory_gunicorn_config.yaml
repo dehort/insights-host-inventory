@@ -1,0 +1,11 @@
+apiVersion: v1
+data:
+  gunicorn.conf.py: |-
+    from prometheus_client import multiprocess
+
+    def child_exit(server, worker):
+          multiprocess.mark_process_dead(worker.pid)
+kind: ConfigMap
+metadata:
+  creationTimestamp: null
+  name: inventory-gunicorn-config
