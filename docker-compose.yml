@@ -26,6 +26,8 @@ services:
             INVENTORY_DB_PASSWORD: insights
             prometheus_multiproc_dir: /tmp/
             INVENTORY_LOGGING_CONFIG_FILE: logconfig.ini
+            FLASK_DEBUG: 1
+            NOAUTH: 1
         ports:
             - "8080:8080"
         depends_on:
