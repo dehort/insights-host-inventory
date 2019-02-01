@@ -1,0 +1,33 @@
+version: '3.1'
+services:
+    db:
+        image: postgres
+        restart: always
+        environment:
+            POSTGRES_PASSWORD: insights
+            POSTGRES_USER: insights
+            POSTGRES_DB: insights
+        ports:
+            - "5432:5432"
+    web:
+        #build: .
+        image: invsvc
+        restart: always
+        #command: bash -c "sleep 2 && pipenv run ./manage.py db upgrade && pipenv run gunicorn -b 0.0.0.0:8080 -c gunicorn.conf.py --log-config=$INVENTORY_LOGGING_CONFIG_FILE run"
+        #command: "pipenv run gunicorn -b 0.0.0.0:8080 -c gunicorn.conf.py --log-config=$INVENTORY_LOGGING_CONFIG_FILE run"
+        #command: ["/code/invsvc.sh"]
+        #volumes:
+        #- /code
+        environment:
+            DB_HOST: db
+            INVENTORY_DB_HOST: db
+            INVENTORY_DB_NAME: insights
+            INVENTORY_DB_USER: insights
+            INVENTORY_DB_PASSWORD: insights
+            prometheus_multiproc_dir: /tmp/
+            INVENTORY_LOGGING_CONFIG_FILE: logconfig.ini
+        ports:
+            - "8080:8080"
+        depends_on:
+            - db
+
