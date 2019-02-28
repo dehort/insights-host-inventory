@@ -10,10 +10,6 @@ __all__ = ["Identity", "IdentityBuilder", "validate"]
 class IdentityBuilder:
 
     @staticmethod
-    def for_disabled_authentication():
-        return Identity(account_number="0000001")
-
-    @staticmethod
     def from_dict(dict_):
         """
         Build an Identity from a dictionary of values.
@@ -43,13 +39,32 @@ class IdentityBuilder:
         return IdentityBuilder.from_json(json)
 
     @staticmethod
+    def from_auth_header(base64):
+        if IdentityBuilder._is_authentication_disabled():
+            return IdentityBuilder._build_disabled_identity()
+
+        return IdentityBuilder.from_encoded_json(base64)
+
+    @staticmethod
+    def _is_authentication_disabled():
+        return os.getenv("FLASK_DEBUG") and os.getenv("NOAUTH")
+
+    @staticmethod
+    def _build_disabled_identity():
+        return Identity(account_number="0000001")
+
+    @staticmethod
     def from_bearer_token(token):
+        if IdentityBuilder._is_authentication_disabled():
+            return IdentityBuilder._build_disabled_identity()
+
         return TrustedIdentity(token=token)
 
 
 class Identity:
     def __init__(self, account_number=None):
         self._account_number = account_number
+        self._is_trusted_system = False
 
     def _asdict(self):
         return {"account_number": self._account_number}
@@ -58,8 +73,10 @@ class Identity:
     def account_number(self):
         return self._account_number
 
+    def is_trusted_system(self):
+        return self._is_trusted_system
+
     def __eq__(self, other):
-        print("Identity.__eq__")
         return self._account_number == other._account_number
 
 
@@ -69,40 +86,18 @@ class TrustedIdentity(Identity):
     Identity is trusted to be passing in the correct account
     number(s).
     """
-
     def __init__(self, token=None):
         self.token = token
-        self._account_number = self.AccountNumber()
-
-    class AccountNumber(str):
-        """
-        This class acts as a "wildcard" account number.
-        """
-        def __str__(self):
-            print("AccountNumber.__str__()")
-            return self.__repr__()
-
-        def __repr__(self):
-            print("AccountNumber.__repr__()")
-            return "*"
-
-        def __eq__(self, other):
-            print("AccountNumber.__eq__()")
-            return True
-
-        def __ne__(self, other):
-            print("AccountNumber.__ne__()")
-            return False
+        self._is_trusted_system = True
+        self._account_number = "*"
 
 
 def validate(identity):
-    """
-    Ensure the account number is present.
-    """
     if isinstance(identity, TrustedIdentity):
         if identity.token != os.getenv("INVENTORY_SHARED_SECRET"):
             raise ValueError("Invalid credentials")
     else:
+        # Ensure the account number is present.
         dict_ = identity._asdict()
         if not all(dict_.values()):
             raise ValueError("The account_number is mandatory.")
