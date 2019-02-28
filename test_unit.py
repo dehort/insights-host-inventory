@@ -98,7 +98,7 @@ class AuthIdentityFromDictTest(AuthIdentityConstructorTestCase):
     def test_is_trusted_system(self):
         identity = self._identity()
 
-        self.assertEqual(identity.is_trusted_system(), False)
+        self.assertEqual(identity.is_trusted_system, False)
 
 
 
@@ -261,7 +261,7 @@ class TrustedIdentityTestCase(TestCase):
     def test_is_trusted_system(self):
         identity = self._build_id()
 
-        self.assertEqual(identity.is_trusted_system(), True)
+        self.assertEqual(identity.is_trusted_system, True)
 
 
 @pytest.mark.usefixtures("monkeypatch")
