@@ -24,7 +24,8 @@ def token_validator(token):
         identity = IdentityBuilder.from_bearer_token(token)
         validate(identity)
     except Exception as e:
-        logger.debug("Failed to validate bearer token value: %s", e)
+        logger.debug("Failed to validate bearer token value",
+                     exc_info=True)
         return None
 
     return {'uid': identity}
@@ -35,7 +36,8 @@ def header_validator(apikey, required_scopes=None):
         identity = IdentityBuilder.from_auth_header(apikey)
         validate(identity)
     except Exception as e:
-        logger.debug("Failed to validate identity header value: %s", e)
+        logger.debug("Failed to validate identity header value",
+                     exc_info=True)
         return None
 
     return {'uid': identity}
