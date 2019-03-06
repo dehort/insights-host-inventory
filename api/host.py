@@ -54,12 +54,25 @@ def add_host(host):
 
 def find_existing_host(account_number, canonical_facts):
     existing_host = None
-    insights_id = canonical_facts.get("insights_id", None)
 
-    if insights_id:
-        # The insights_id is the most important canonical fact.  If there
-        # is a matching insights_id, then update that host.
-        existing_host = find_host_by_insights_id(account_number, insights_id)
+    # FIXME: create a canonical_facts class or something
+    top_level_canonical_facts = {"insights_id",
+                                 "subscription_manager_id",
+                                 "external_id",
+                                 #"fqdn",
+                                 }
+
+    id_dict = {}
+    for cf in top_level_canonical_facts:
+        cf_value = canonical_facts.get(cf, None)
+        if cf_value:
+            id_dict[cf] = cf_value
+
+    #print("id_dict:", id_dict)
+
+    if id_dict:
+        # There is at least one top level cf passed in
+        existing_host = find_host_by_insights_id(account_number, **id_dict)
 
     if not existing_host:
         existing_host = find_host_by_canonical_facts(account_number,
@@ -68,11 +81,14 @@ def find_existing_host(account_number, canonical_facts):
     return existing_host
 
 
-def find_host_by_insights_id(account_number, insights_id):
-    return Host.query.filter(
-            (Host.account == account_number)
-            & (Host.canonical_facts["insights_id"].astext == insights_id)
-        ).first()
+def find_host_by_insights_id(account_number, **kwargs):
+    filter_list = [Host.canonical_facts[k].astext == v
+                   for k, v in kwargs.items()]
+
+    return Host.query.filter(sqlalchemy.and_(
+        *[Host.account == account_number,
+          sqlalchemy.or_(*filter_list)]
+        )).first()
 
 
 def _canonical_facts_host_query(account_number, canonical_facts):
