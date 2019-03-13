@@ -125,7 +125,7 @@ def create_new_host(input_host):
     db.session.commit()
     metrics.create_host_count.inc()
     logger.debug("Created host:%s" % input_host)
-    return input_host.to_json(), 201
+    return input_host.to_json(output_facts=False), 201
 
 
 def update_existing_host(existing_host, input_host):
@@ -134,7 +134,7 @@ def update_existing_host(existing_host, input_host):
     db.session.commit()
     metrics.update_host_count.inc()
     logger.debug("Updated host:%s" % existing_host)
-    return existing_host.to_json(), 200
+    return existing_host.to_json(output_facts=False), 200
 
 
 @api_operation

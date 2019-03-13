@@ -564,6 +564,11 @@ components:
               description: A timestamp when the entry was last updated.
               type: string
               format: date-time
+            facts:
+              description: A set of facts belonging to the host.
+              type: array
+              items:
+                $ref: '#/components/schemas/FactSet'
     HostQueryOutput:
       title: A Host Inventory query result
       description: >-

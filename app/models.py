@@ -116,13 +116,14 @@ class Host(db.Model):
             convert_json_facts_to_dict(d.get("facts", [])),
         )
 
-    def to_json(self):
+    def to_json(self, output_facts=True):
         json_dict = convert_canonical_facts_to_fields(self.canonical_facts)
         json_dict["id"] = self.id
         json_dict["account"] = self.account
         json_dict["display_name"] = self.display_name
-        # Internally store the facts in a dict
-        json_dict["facts"] = convert_dict_to_json_facts(self.facts)
+        if output_facts:
+            # Internally store the facts in a dict
+            json_dict["facts"] = convert_dict_to_json_facts(self.facts)
         json_dict["created"] = self.created_on
         json_dict["updated"] = self.modified_on
         return json_dict

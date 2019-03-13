@@ -183,6 +183,7 @@ class DBAPITestCase(BaseAPITestCase):
         return response["data"][host_index]["host"]
 
     def _validate_host(self, received_host, expected_host,
+                       validate_facts=True,
                        expected_id=id):
         self.assertIsNotNone(received_host["id"])
         self.assertEqual(received_host["id"], expected_id)
@@ -203,7 +204,9 @@ class DBAPITestCase(BaseAPITestCase):
                          expected_host.ip_addresses)
         self.assertEqual(received_host["display_name"],
                          expected_host.display_name)
-        self.assertEqual(received_host["facts"], expected_host.facts)
+
+        if validate_facts:
+            self.assertEqual(received_host["facts"], expected_host.facts)
 
         self.assertIsNotNone(received_host["created"])
         self.assertIsNotNone(received_host["updated"])
@@ -224,7 +227,9 @@ class CreateHostsTestCase(DBAPITestCase):
 
         original_id = created_host["id"]
 
-        self._validate_host(created_host, host_data, expected_id=original_id)
+        self._validate_host(created_host, host_data,
+                            expected_id=original_id, validate_facts=False)
+
         created_time = dateutil.parser.parse(created_host["created"])
         self.assertGreater(datetime.now(timezone.utc), created_time)
 
@@ -289,7 +294,8 @@ class CreateHostsTestCase(DBAPITestCase):
 
         original_id = created_host["id"]
 
-        self._validate_host(created_host, host_data, expected_id=original_id)
+        self._validate_host(created_host, host_data,
+                            expected_id=original_id, validate_facts=False)
 
         # Change the canonical facts except for the insights_id
         host_data.rhel_machine_id = generate_uuid()
@@ -647,7 +653,8 @@ class BulkCreateHostsTestCase(DBAPITestCase):
 
                 self._validate_host(host["host"],
                                     expected_host,
-                                    expected_id=expected_host.id)
+                                    expected_id=expected_host.id,
+                                    validate_facts=False)
 
                 i += 1
 
@@ -663,7 +670,7 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase):
             ("host2", generate_uuid(), "host1.domain.test"),  # the same fqdn is intentional
             ("host3", generate_uuid(), "host2.domain.test"),
         ]
-        host_list = []
+        added_host_list = []
 
         for host in hosts_to_create:
             host_wrapper = HostWrapper()
@@ -674,9 +681,16 @@ class PreCreatedHostsBaseTestCase(DBAPITestCase):
             host_wrapper.facts = [{"namespace": "ns1", "facts": {"key1": "value1"}}]
 
             response_data = self.post(HOST_URL, [host_wrapper.data()], 207)
-            host_list.append(HostWrapper(response_data["data"][0]["host"]))
+            added_host_list.append(HostWrapper(response_data["data"][0]["host"]))
 
-        return host_list
+        # This next bit of code is required because the create/POST no longer
+        # returns the facts as part of the host response
+        url_host_id_list = self._build_host_id_list_for_url(added_host_list)
+        test_url = HOST_URL + "/" + url_host_id_list
+
+        response_data = self.get(test_url, 200)
+
+        return [HostWrapper(host) for host in response_data["results"]]
 
     def _base_paging_test(self, url, expected_number_of_hosts):
         def _test_get_page(page, expected_count=1):
