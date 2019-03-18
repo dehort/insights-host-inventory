@@ -269,16 +269,29 @@ class CreateHostsTestCase(DBAPITestCase):
 
     def test_create_host_update_with_same_insights_id_and_different_canonical_facts(self):
         original_insights_id = generate_uuid()
+        original_rhel_machine_id = generate_uuid()
+        original_subscription_manager_id = generate_uuid()
+        original_satellite_id = generate_uuid()
+        original_bios_uuid = generate_uuid()
+        original_fqdn = "original_fqdn"
+        original_mac_addresses = ["aa:bb:cc:dd:ee:ff"]
+        original_external_id = "abcdef"
 
-        host_data = HostWrapper(test_data(facts=None))
+        original_facts = copy.deepcopy(FACTS)
+        expected_facts = copy.deepcopy(FACTS)
+        facts_to_add = [{"namespace": "ns1",
+                        "facts": {"newkey": "newvalue"}}]
+        expected_facts[0]["facts"].update(facts_to_add[0]["facts"])
+
+        host_data = HostWrapper(test_data(facts=original_facts))
         host_data.insights_id = original_insights_id
-        host_data.rhel_machine_id = generate_uuid()
-        host_data.subscription_manager_id = generate_uuid()
-        host_data.satellite_id = generate_uuid()
-        host_data.bios_uuid = generate_uuid()
-        host_data.fqdn = "original_fqdn"
-        host_data.mac_addresses = ["aa:bb:cc:dd:ee:ff"]
-        host_data.external_id = "abcdef"
+        host_data.rhel_machine_id = original_rhel_machine_id
+        host_data.subscription_manager_id = original_subscription_manager_id
+        host_data.satellite_id = original_satellite_id
+        host_data.bios_uuid = original_bios_uuid
+        host_data.fqdn = original_fqdn
+        host_data.mac_addresses = original_mac_addresses
+        host_data.external_id = original_external_id
 
         # Create the host
         response = self.post(HOST_URL, [host_data.data()], 207)
@@ -291,27 +304,126 @@ class CreateHostsTestCase(DBAPITestCase):
 
         self._validate_host(created_host, host_data, expected_id=original_id)
 
+        update_host = HostWrapper(copy.deepcopy(host_data.data()))
+
         # Change the canonical facts except for the insights_id
-        host_data.rhel_machine_id = generate_uuid()
-        host_data.ip_addresses = ["192.168.1.44", "10.0.0.2", ]
-        host_data.subscription_manager_id = generate_uuid()
-        host_data.satellite_id = generate_uuid()
-        host_data.bios_uuid = generate_uuid()
-        host_data.fqdn = "expected_fqdn"
-        host_data.mac_addresses = ["ff:ee:dd:cc:bb:aa"]
-        host_data.external_id = "fedcba"
-        host_data.facts = [{"namespace": "ns1",
-                            "facts": {"newkey": "newvalue"}}]
+        update_host.rhel_machine_id = generate_uuid()
+        update_host.ip_addresses = ["192.168.1.44", "10.0.0.2", ]
+        update_host.subscription_manager_id = generate_uuid()
+        update_host.satellite_id = generate_uuid()
+        update_host.bios_uuid = generate_uuid()
+        update_host.fqdn = "expected_fqdn"
+        update_host.mac_addresses = ["ff:ee:dd:cc:bb:aa"]
+        update_host.external_id = "fedcba"
+        update_host.facts = facts_to_add
 
         # Update the host
-        response = self.post(HOST_URL, [host_data.data()], 207)
+        response = self.post(HOST_URL, [update_host.data()], 207)
 
         self._verify_host_status(response, 0, 200)
 
-        updated_host = self._pluck_host_from_response(response, 0)
+        updated_host_response = self._pluck_host_from_response(response, 0)
+
+        # Verify that the facts were overwritten
+        host_data.facts = facts_to_add
+
+        # Make sure the canonical facts that were passed in were ignored
+        # since the insights_id won the dedup battle
+        self._validate_host(updated_host_response,
+                            host_data,
+                            expected_id=original_id)
 
         # Verify that the id did not change on the update
-        self.assertEqual(updated_host["id"], original_id)
+        self.assertEqual(updated_host_response["id"], original_id)
+
+        # Retrieve the host using the id that we first received
+        data = self.get("%s/%s" % (HOST_URL, original_id), 200)
+
+        self._validate_host(data["results"][0],
+                            host_data,
+                            expected_id=original_id)
+
+    def test_create_host_update_with_same_insights_id_and_different_canonical_facts_add_ip(self):
+        original_insights_id = generate_uuid()
+        original_rhel_machine_id = generate_uuid()
+        original_subscription_manager_id = generate_uuid()
+        original_satellite_id = generate_uuid()
+        original_bios_uuid = generate_uuid()
+        original_fqdn = "original_fqdn"
+        original_external_id = "abcdef"
+
+        original_mac_addresses = ["aa:bb:cc:dd:ee:ff"]
+        expected_mac_addresses = original_mac_addresses[:]
+        expected_mac_addresses.append("aa:bb:cc:dd:ee:11")
+
+        original_ip_addresses = ["123.123.123.123"]
+        expected_ip_addresses = original_ip_addresses[:]
+        expected_ip_addresses.append("11.11.11.11")
+
+        original_facts = copy.deepcopy(FACTS)
+        expected_facts = copy.deepcopy(FACTS)
+        facts_to_add = [{"namespace": "ns1",
+                        "facts": {"newkey": "newvalue"}}]
+        expected_facts[0]["facts"].update(facts_to_add[0]["facts"])
+
+        host_data = HostWrapper(test_data(facts=original_facts))
+        host_data.insights_id = original_insights_id
+        host_data.rhel_machine_id = original_rhel_machine_id
+        host_data.subscription_manager_id = original_subscription_manager_id
+        host_data.satellite_id = original_satellite_id
+        host_data.bios_uuid = original_bios_uuid
+        host_data.fqdn = original_fqdn
+        host_data.external_id = original_external_id
+
+        host_data.mac_addresses = original_mac_addresses
+        host_data.ip_addresses = original_ip_addresses
+
+        # Create the host
+        response = self.post(HOST_URL, [host_data.data()], 207)
+
+        self._verify_host_status(response, 0, 201)
+
+        created_host = self._pluck_host_from_response(response, 0)
+
+        original_id = created_host["id"]
+
+        self._validate_host(created_host, host_data, expected_id=original_id)
+
+        update_host = HostWrapper(copy.deepcopy(host_data.data()))
+
+        # Change the canonical facts except for the insights_id
+        update_host.rhel_machine_id = generate_uuid()
+        update_host.ip_addresses = expected_ip_addresses
+        update_host.mac_addresses = expected_mac_addresses
+        update_host.subscription_manager_id = generate_uuid()
+        update_host.satellite_id = generate_uuid()
+        update_host.bios_uuid = generate_uuid()
+        update_host.fqdn = "expected_fqdn"
+        update_host.external_id = "fedcba"
+        update_host.facts = facts_to_add
+
+        # Update the host
+        response = self.post(HOST_URL, [update_host.data()], 207)
+
+        self._verify_host_status(response, 0, 200)
+
+        updated_host_response = self._pluck_host_from_response(response, 0)
+        print("updated_host_response ip:", updated_host_response["ip_addresses"])
+        print("updated_host_response mac:", updated_host_response["mac_addresses"])
+
+        # Verify that the facts were overwritten
+        host_data.facts = facts_to_add
+        host_data.ip_addresses = expected_ip_addresses
+        host_data.mac_addresses = expected_mac_addresses
+
+        # Make sure the canonical facts that were passed in were ignored
+        # since the insights_id won the dedup battle
+        self._validate_host(updated_host_response,
+                            host_data,
+                            expected_id=original_id)
+
+        # Verify that the id did not change on the update
+        self.assertEqual(updated_host_response["id"], original_id)
 
         # Retrieve the host using the id that we first received
         data = self.get("%s/%s" % (HOST_URL, original_id), 200)

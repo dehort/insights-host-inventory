@@ -138,6 +138,8 @@ class Host(db.Model):
         self.update_facts(input_host.facts)
 
     def update_display_name(self, input_host):
+        print("self.display_name:", self.display_name)
+        print("input_host.display_name:", input_host.display_name)
         if input_host.display_name:
             self.display_name = input_host.display_name
         elif not self.display_name:
@@ -145,12 +147,30 @@ class Host(db.Model):
             # existing host record and the input host does not have it set
             if "fqdn" in self.canonical_facts:
                 self.display_name = self.canonical_facts["fqdn"]
+                print("self.display_name:", self.display_name)
+                print("FQDN")
             else:
                 self.display_name = self.id
+                print("self.display_name:", self.display_name)
+                print("ID")
 
     def update_canonical_facts(self, canonical_facts):
-        self.canonical_facts.update(canonical_facts)
-        orm.attributes.flag_modified(self, "canonical_facts")
+        cf_changed = False
+        # Only add new canonical facts...do not replace them
+        for cf in canonical_facts:
+            if cf not in self.canonical_facts:
+                # Add new canonical facts
+                self.canonical_facts[cf] = canonical_facts[cf]
+                cf_changed = True
+            else:
+                # Add new ip addresses and mac addresses
+                if cf in ("ip_addresses", "mac_addresses"):
+                    if set(self.canonical_facts[cf]).issubset(set(canonical_facts[cf])):
+                        self.canonical_facts[cf] = canonical_facts[cf]
+                        cf_changed = True
+
+        if cf_changed:
+            orm.attributes.flag_modified(self, "canonical_facts")
 
     def update_facts(self, facts_dict):
         if facts_dict:
