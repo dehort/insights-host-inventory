@@ -479,9 +479,11 @@ class CreateHostsTestCase(DBAPITestCase):
             with self.subTest(ip_array=ip_array):
                 host_data.ip_addresses = ip_array
 
-                response_data = self.post(HOST_URL, [host_data.data()], 400)
+                response_data = self.post(HOST_URL, [host_data.data()], 207)
 
-                self.verify_error_response(response_data,
+                self.assertEqual(response_data["data"][0]["status"], 400)
+
+                self.verify_error_response(response_data["data"][0],
                                            expected_title="Bad Request")
 
     def test_create_host_with_invalid_mac_address(self):
@@ -496,9 +498,12 @@ class CreateHostsTestCase(DBAPITestCase):
             with self.subTest(mac_array=mac_array):
                 host_data.mac_addresses = mac_array
 
-                response_data = self.post(HOST_URL, [host_data.data()], 400)
+                response_data = self.post(HOST_URL, [host_data.data()], 207)
+                print("response_data:", response_data)
 
-                self.verify_error_response(response_data,
+                self.assertEqual(response_data["data"][0]["status"], 400)
+
+                self.verify_error_response(response_data["data"][0],
                                            expected_title="Bad Request")
 
     def test_create_host_with_invalid_display_name(self):
@@ -510,23 +515,31 @@ class CreateHostsTestCase(DBAPITestCase):
             with self.subTest(display_name=display_name):
                 host_data.display_name = display_name
 
-                response_data = self.post(HOST_URL, [host_data.data()], 400)
+                print("_-------------------")
+                response_data = self.post(HOST_URL, [host_data.data()], 207)
+                print("response_data:", response_data)
+        
+                host = self._pluck_host_from_response(response_data, 0)
+                print("host:", host)
 
-                self.verify_error_response(response_data,
+                self.verify_error_response(host,
                                            expected_title="Bad Request")
+                print("_-------------------")
 
     def test_create_host_invalid_fqdn(self):
         host_data = HostWrapper(test_data(facts=None))
 
-        invalid_fqdns = ["", None, "a"*256]
+        #invalid_fqdns = ["", None, "a"*256]
+        invalid_fqdns = ["a"*256]
 
         for fqdn in invalid_fqdns:
             with self.subTest(fqdn=fqdn):
                 host_data.fqdn = fqdn
 
-                response_data = self.post(HOST_URL, [host_data.data()], 400)
+                response_data = self.post(HOST_URL, [host_data.data()], 207)
+                print("response_data:", response_data)
 
-                self.verify_error_response(response_data,
+                self.verify_error_response(response_data["data"][0],
                                            expected_title="Bad Request")
 
 

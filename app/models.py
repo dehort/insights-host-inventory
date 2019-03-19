@@ -7,37 +7,51 @@ from sqlalchemy import orm
 
 from app.exceptions import InputFormatException
 
+from app.validators import (validate_string,
+                            validate_ip_address_list,
+                            validate_mac_address_list)
+from api.json_validators import verify_uuid_format
 
 db = SQLAlchemy()
 
 
 CANONICAL_FACTS = (
-    "insights_id",
-    "rhel_machine_id",
-    "subscription_manager_id",
-    "satellite_id",
-    "bios_uuid",
-    "ip_addresses",
-    "fqdn",
-    "mac_addresses",
-    "external_id",
+    ("insights_id", verify_uuid_format),
+    ("rhel_machine_id", verify_uuid_format),
+    ("subscription_manager_id", verify_uuid_format),
+    ("satellite_id", verify_uuid_format),
+    ("bios_uuid", verify_uuid_format),
+    ("ip_addresses", validate_ip_address_list),
+    ("fqdn", validate_string(max_length=200)),
+    ("mac_addresses", validate_mac_address_list),
+    ("external_id", validate_string(max_length=200)),
 )
 
 
 def convert_fields_to_canonical_facts(json_dict):
     canonical_fact_list = {}
-    for cf in CANONICAL_FACTS:
+    for (cf_key, validator) in CANONICAL_FACTS:
+        print("cf_key:", cf_key)
+        print("validator:", validator)
         # Do not allow the incoming canonical facts to be None or ''
-        if cf in json_dict and json_dict[cf]:
-            canonical_fact_list[cf] = json_dict[cf]
+        if cf_key in json_dict and json_dict[cf_key]:
+            print("Calling validator:", cf_key)
+            if validator(json_dict[cf_key]):
+                print("VALID")
+                canonical_fact_list[cf_key] = json_dict[cf_key]
+            else:
+                print("INVALID")
+                raise InputFormatException(f"Invalid format of {cf_key} field")
     return canonical_fact_list
 
 
 def convert_canonical_facts_to_fields(internal_dict):
-    canonical_fact_dict = dict.fromkeys(CANONICAL_FACTS, None)
-    for cf in CANONICAL_FACTS:
+    canonical_fact_dict = dict.fromkeys([cf[0] for cf in CANONICAL_FACTS], None)
+    #print("canonical_fact_dict:", canonical_fact_dict)
+    for (cf, _) in CANONICAL_FACTS:
         if cf in internal_dict:
             canonical_fact_dict[cf] = internal_dict[cf]
+    #print("canonical_fact_dict:", canonical_fact_dict)
     return canonical_fact_dict
 
 
@@ -110,8 +124,10 @@ class Host(db.Model):
         return cls(
             # Internally store the canonical facts as a dict
             convert_fields_to_canonical_facts(d),
+            #validate_string(d.get("display_name", None), min_length=1, max_length=200),
             d.get("display_name", None),
             d.get("account"),
+            #validate_string(d.get("account"), min_length=1, max_length=20),
             # Internally store the facts in a dict
             convert_json_facts_to_dict(d.get("facts", [])),
         )
