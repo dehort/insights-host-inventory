@@ -2,8 +2,8 @@ import json
 
 
 class HostWrapper:
-    def __init__(self, data={}):
-        self.__data = data
+    def __init__(self, data=None):
+        self.__data = data or {}
 
     def data(self):
         return self.__data
@@ -93,14 +93,6 @@ class HostWrapper:
     @facts.setter
     def facts(self, facts):
         self.__data["facts"] = facts
-
-    @property
-    def tags(self):
-        return self.__data.get("tags", None)
-
-    @tags.setter
-    def tags(self, tags):
-        self.__data["tags"] = tags
 
     @property
     def id(self):

@@ -11,6 +11,7 @@ from api.mgmt import monitoring_blueprint
 from app.config import Config
 from app.models import db
 from app.exceptions import InventoryException
+from app.validators import verify_uuid_format
 
 
 def render_exception(exception):
@@ -35,10 +36,6 @@ def create_app(config_name):
     # Read the swagger.yml file to configure the endpoints
     with open("swagger/api.spec.yaml", "rb") as fp:
         spec = yaml.safe_load(fp)
-
-    # If we want to disable auth we first make the header not required
-    if os.getenv("FLASK_DEBUG") and os.getenv("NOAUTH"):
-        spec["parameters"]["rhIdentityHeader"]["required"] = False
 
     connexion_app.add_api(
         spec,

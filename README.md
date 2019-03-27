@@ -47,12 +47,24 @@ docker-compose down
 
 ## Running the Tests
 
-Running the tests is quite simple:
+It is possible to run the tests using pytest:
 
 ```
-./test_api.py
-./test_unit.py
+prometheus_multiproc_dir=/path/to/prometheus_multiprocess/ pytest --cov=.
 ```
+
+Or you can run the tests individually:
+
+```
+prometheus_multiproc_dir=/path/to/prometheus_multiprocess/ ./test_api.py
+prometheus_multiproc_dir=/path/to/prometheus_multiprocess/ pytest test_db_model.py
+./test_unit.py
+pytest test_json_validators.py
+```
+
+Depending on the environment, it might be necessary to set the DB related environment
+variables (INVENTORY_DB_NAME, INVENTORY_DB_HOST, etc).  See information on
+_prometheus_multiproc_dir_ environment variable below.
 
 ## Running the server
 
@@ -82,21 +94,6 @@ _prometheus_multiproc_dir_ environment variable. This is done automatically.
 python run_gunicorn.py 
 ```
 
-#### Disable authentication checks
-
-It is also possible to disable authentication (mainly useful for developement).
-This is accomplished by setting the FLASK_DEBUG=1 and NOAUTH=1 environment 
-variables.
-
-```
-FLASK_DEBUG=1 NOAUTH=1 gunicorn -c gunicorn.conf.py --log-config=$INVENTORY_LOGGING_CONFIG_FILE run
-```
-
-By default, the the auth header usually contains the account number.
-When adding/updating a host, the account
-number from the auth header is checked against what is provided along with the host.
-When running in disabled authentication mode, the account number passed along with
-the hosts should be "0000001".
 
 ## Configuration environment variables
 
@@ -170,3 +167,15 @@ will be added to the existing host entry.
 
 If the canonical facts based lookup does not locate an existing host, then
 a new host entry is created.
+
+#### Testing API Calls
+
+It is necessary to pass an authentication header along on each call to the
+service.  For testing purposes, it is possible to set the required identity
+header to the following:
+
+  x-rh-identity: eyJpZGVudGl0eSI6eyJhY2NvdW50X251bWJlciI6IjAwMDAwMDEifX0=
+
+This is the base64 encoding of the following json doc:
+
+  '{"identity":{"account_number":"0000001"}}'

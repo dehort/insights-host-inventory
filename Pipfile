@@ -21,6 +21,9 @@ connexion = {extras = ["swagger-ui"]}
 pyyaml = ">=3.13"
 prometheus-client = "*"
 logstash-formatter = "*"
+pytest = "*"
+validators = "*"
+marshmallow = "*"
 
 [dev-packages]
 pytest = "*"
