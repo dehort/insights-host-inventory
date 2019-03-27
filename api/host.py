@@ -86,23 +86,23 @@ def find_existing_host(account_number, canonical_facts):
     existing_host = None
 
     # FIXME: create a canonical_facts class or something
-    top_level_canonical_facts = {"insights_id",
+    top_level_canonical_facts = ("insights_id",
                                  "subscription_manager_id",
                                  "external_id",
                                  #"fqdn",
-                                 }
+                                 )
 
     id_dict = {}
     for cf in top_level_canonical_facts:
-        cf_value = canonical_facts.get(cf, None)
+        cf_value = canonical_facts.get(cf)
         if cf_value:
             id_dict[cf] = cf_value
 
-    #print("id_dict:", id_dict)
+    print("id_dict:", id_dict)
 
     if id_dict:
         # There is at least one top level cf passed in
-        existing_host = find_host_by_insights_id(account_number, **id_dict)
+        existing_host = _find_host_by_elevated_ids(account_number, **id_dict)
 
     if not existing_host:
         existing_host = find_host_by_canonical_facts(account_number,
@@ -111,7 +111,7 @@ def find_existing_host(account_number, canonical_facts):
     return existing_host
 
 
-def find_host_by_insights_id(account_number, **kwargs):
+def _find_host_by_elevated_ids(account_number, **kwargs):
     filter_list = [Host.canonical_facts[k].astext == v
                    for k, v in kwargs.items()]
 
