@@ -85,15 +85,14 @@ def _add_host(host):
 def find_existing_host(account_number, canonical_facts):
     existing_host = None
 
-    # FIXME: create a canonical_facts class or something
-    top_level_canonical_facts = ("insights_id",
-                                 "subscription_manager_id",
-                                 "external_id",
-                                 #"fqdn",
-                                 )
+    elevated_canonical_fact_fields = ("insights_id",
+                                      "subscription_manager_id",
+                                      "external_id",
+                                      # "fqdn",
+                                      )
 
     id_dict = {}
-    for cf in top_level_canonical_facts:
+    for cf in elevated_canonical_fact_fields:
         cf_value = canonical_facts.get(cf)
         if cf_value:
             id_dict[cf] = cf_value
@@ -101,7 +100,7 @@ def find_existing_host(account_number, canonical_facts):
     print("id_dict:", id_dict)
 
     if id_dict:
-        # There is at least one top level cf passed in
+        # There is at least one "elevated" cf passed in
         existing_host = _find_host_by_elevated_ids(account_number, **id_dict)
 
     if not existing_host:
@@ -111,6 +110,7 @@ def find_existing_host(account_number, canonical_facts):
     return existing_host
 
 
+@metrics.find_host_using_elevated_ids.time()
 def _find_host_by_elevated_ids(account_number, **kwargs):
     filter_list = [Host.canonical_facts[k].astext == v
                    for k, v in kwargs.items()]
@@ -118,7 +118,7 @@ def _find_host_by_elevated_ids(account_number, **kwargs):
     return Host.query.filter(sqlalchemy.and_(
         *[Host.account == account_number,
           sqlalchemy.or_(*filter_list)]
-        )).first()
+        )).order_by(Host.created_on).first()
 
 
 def _canonical_facts_host_query(account_number, canonical_facts):
