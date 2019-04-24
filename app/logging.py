@@ -39,13 +39,12 @@ def configure_logging(config_name):
         _configure_contextual_logging_filter()
 
 
-def _configure_watchtower_logging_handler():
+def _get_watchtower_logging_handler():
     aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID", None)
     aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY", None)
     aws_region_name = os.getenv("AWS_REGION_NAME", None)
     log_group = "platform"
     stream_name = _get_aws_logging_stream_name(OPENSHIFT_ENVIRONMENT_NAME_FILE)
-    log_level = os.getenv("INVENTORY_LOG_LEVEL", "WARNING").upper()
 
     if all([aws_access_key_id, aws_secret_access_key,
             aws_region_name, stream_name]):
@@ -54,20 +53,27 @@ def _configure_watchtower_logging_handler():
                                 aws_secret_access_key=aws_secret_access_key,
                                 region_name=aws_region_name)
 
-        root = logging.getLogger()
         handler = watchtower.CloudWatchLogHandler(boto3_session=boto3_session,
                                                   log_group=log_group,
                                                   stream_name=stream_name)
         handler.setFormatter(logstash_formatter.LogstashFormatterV1())
-        root.addHandler(handler)
-
-        for logger_name in modules:
-            app_logger = logging.getLogger(logger_name)
-            app_logger.setLevel(log_level)
-
+        return handler
     else:
         print("Unable to configure watchtower logging.  Please "
               "verify watchtower logging configuration!")
+        return None
+
+
+def _configure_watchtower_logging_handler():
+    log_level = os.getenv("INVENTORY_LOG_LEVEL", "WARNING").upper()
+    root_logger = logging.getLogger()
+    handler = _get_watchtower_logging_handler()
+    if handler:
+        root_logger.addHandler(handler)
+
+    for logger_name in modules:
+        app_logger = logging.getLogger(logger_name)
+        app_logger.setLevel(log_level)
 
 
 def _get_aws_logging_stream_name(namespace_filename):
@@ -130,6 +136,9 @@ class InventoryGunicornLogger(glogging.Logger):
     def setup(self, cfg):
         super().setup(cfg)
 
+        handler = _get_watchtower_logging_handler()
+        if handler:
+            self.error_log.addHandler(handler)
         self._set_handler(self.error_log,
                           cfg.errorlog,
                           logstash_formatter.LogstashFormatterV1())
