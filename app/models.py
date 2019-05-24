@@ -88,7 +88,7 @@ class Host(db.Model):
             d.get("system_profile", {}),
         )
 
-    def export(self, exporter=None):
+    def export(self):
         json_dict = CanonicalFacts.to_json(self.canonical_facts)
         json_dict["id"] = str(self.id)
         json_dict["account"] = self.account
@@ -98,7 +98,7 @@ class Host(db.Model):
         json_dict["created"] = self.created_on.isoformat()+"Z"
         json_dict["updated"] = self.modified_on.isoformat()+"Z"
         json_dict["system_profile"] = self.system_profile_facts or {}
-        return exporter(json_dict) or json_dict
+        return json_dict
 
     def save(self):
         db.session.add(self)

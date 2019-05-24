@@ -169,7 +169,7 @@ def create_new_host(input_host):
     metrics.create_host_count.inc()
     logger.debug("Created host:%s" % input_host)
     exporter = HostExporter()
-    return input_host.export(exporter), 201
+    return exporter(input_host.export()), 201
 
 
 @metrics.update_host_commit_processing_time.time()
@@ -180,7 +180,7 @@ def update_existing_host(existing_host, input_host):
     metrics.update_host_count.inc()
     logger.debug("Updated host:%s" % existing_host)
     exporter = HostExporter()
-    return existing_host.export(exporter), 200
+    return exporter(existing_host.export()), 200
 
 
 @api_operation
@@ -257,7 +257,7 @@ def _params_to_order_by(order_by=None, order_how=None):
 
 
 def _build_paginated_host_list_response(total, exporter, page, per_page, host_list):
-    json_host_list = [host.export(exporter) for host in host_list]
+    json_host_list = [exporter(host.export()) for host in host_list]
     json_output = {"total": total,
                    "count": len(host_list),
                    "page": page,
