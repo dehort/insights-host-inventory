@@ -22,6 +22,28 @@ FactOperations = Enum("FactOperations", ["merge", "replace"])
 logger = get_logger(__name__)
 
 
+class HostExporter:
+    def __init__(self, include_system_profile=False, include_facts=True):
+        self.include_system_profile = include_system_profile
+        self.include_facts = include_facts
+
+    def __call__(self, host):
+        if not self.include_system_profile:
+            del host["system_profile"]
+
+        if not self.include_facts:
+            del host["facts"]
+
+        return host
+
+
+class HostSystemProfileExporter:
+    def __call__(self, host):
+        return {"id": host["id"],
+                "system_profile": host["system_profile"],
+                }
+
+
 @api_operation
 @metrics.api_request_time.time()
 def add_host_list(host_list):
@@ -146,7 +168,8 @@ def create_new_host(input_host):
     db.session.commit()
     metrics.create_host_count.inc()
     logger.debug("Created host:%s" % input_host)
-    return input_host.to_json(), 201
+    exporter = HostExporter()
+    return input_host.export(exporter), 201
 
 
 @metrics.update_host_commit_processing_time.time()
@@ -156,7 +179,8 @@ def update_existing_host(existing_host, input_host):
     db.session.commit()
     metrics.update_host_count.inc()
     logger.debug("Updated host:%s" % existing_host)
-    return existing_host.to_json(), 200
+    exporter = HostExporter()
+    return existing_host.export(exporter), 200
 
 
 @api_operation
@@ -194,7 +218,7 @@ def get_host_list(display_name=None, fqdn=None,
     logger.debug(f"Found hosts: {query_results.items}")
 
     return _build_paginated_host_list_response(
-        query_results.total, page, per_page, query_results.items
+        query_results.total, HostExporter(), page, per_page, query_results.items
     )
 
 
@@ -232,8 +256,8 @@ def _params_to_order_by(order_by=None, order_how=None):
     return ordering + modified_on_ordering
 
 
-def _build_paginated_host_list_response(total, page, per_page, host_list):
-    json_host_list = [host.to_json() for host in host_list]
+def _build_paginated_host_list_response(total, exporter, page, per_page, host_list):
+    json_host_list = [host.export(exporter) for host in host_list]
     json_output = {"total": total,
                    "count": len(host_list),
                    "page": page,
@@ -331,7 +355,7 @@ def get_host_by_id(host_id_list, page=1, per_page=100, order_by=None, order_how=
     logger.debug(f"Found hosts: {query_results.items}")
 
     return _build_paginated_host_list_response(
-        query_results.total, page, per_page, query_results.items
+        query_results.total, HostExporter(), page, per_page, query_results.items
     )
 
 
@@ -358,17 +382,11 @@ def get_host_system_profile_by_id(
         query = query.order_by(*order_by)
     query_results = query.paginate(page, per_page, True)
 
-    response_list = [host.to_system_profile_json()
-                     for host in query_results.items]
-
-    json_output = {"total": query_results.total,
-                   "count": len(response_list),
-                   "page": page,
-                   "per_page": per_page,
-                   "results": response_list,
-                   }
-
-    return _build_json_response(json_output, status=200)
+    return _build_paginated_host_list_response(query_results.total,
+                                               HostSystemProfileExporter(),
+                                               page,
+                                               per_page,
+                                               query_results.items)
 
 
 @api_operation
