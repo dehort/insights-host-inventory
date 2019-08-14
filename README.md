@@ -223,3 +223,13 @@ $ pre-commit install
 
 After that, all your commited files will be linted. If the checks don’t succeed, the commit will be rejected. Please
 make sure all checks pass before submitting a pull request. Thanks!
+
+Blah...
+
+This is the best feature
+
+Blah blah...
+
+This is another great feature.
+
+Fred flintstone feature
